@@ -1,0 +1,16 @@
+
+{
+    "destinations": {
+        "Pokhara": {
+            "country": "Nepal",
+            "attractions": ["Phewa Lake", "Sarangkot", "World Peace Pagoda"],
+            "safety_advisory": "Generally safe. Beware of monsoon weather from June to August."
+        },
+        "Kyoto": {
+            "country": "Japan",
+            "attractions": ["Fushimi Inari Taisha", "Kinkaku-ji", "Arashiyama Bamboo Grove"],
+            "safety_advisory": "Very safe. Respect local customs and noise levels."
+        }
+    }
+}
+
