@@ -1,0 +1,14 @@
+# environments
+
+venv/
+.env
+
+# pycache
+__pycache__/
+*.pyc
+
+# testing cache
+.pytest_cache/
+
+# IDE configurations
+.vscode/
