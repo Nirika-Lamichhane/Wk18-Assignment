@@ -1,48 +1,62 @@
 import json
+import os
 from pathlib import Path
+from dotenv import load_dotenv
+from openai import OpenAI
 from guardrails.input_checks import detect_and_mask_pii, detect_prompt_injection, classify_sensitive_topic
 from guardrails.output_checks import apply_output_guardrails
+
+# Load environment variables
+load_dotenv()
+
+# Point the client to Groq instead of OpenAI
+client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    base_url="https://api.groq.com/openai/v1"
+)
 
 # Load reference knowledge base
 BASE_DIR = Path(__file__).parent
 with open(BASE_DIR / "data" / "reference_info.json", "r") as f:
     REFERENCE_DATA = json.load(f)
 
-def mock_llm_generate(user_prompt: str) -> str:
-    """Simulates an LLM response based on the sanitized prompt."""
-    prompt_lower = user_prompt.lower()
+def generate_dynamic_response(user_prompt: str, reference_db: dict) -> str:
+    """Calls Groq API to generate a dynamic, structured JSON response."""
     
-    if "pokhara" in prompt_lower:
+    system_instruction = f"""
+    You are a secure travel recommendation assistant. 
+    You must ONLY recommend destinations and attractions explicitly listed in this database:
+    {json.dumps(reference_db)}
+    
+    If the user asks for a destination not in the database, do your best to explain it is unsupported, but YOU MUST STILL OUTPUT STRICT JSON.
+    
+    Respond EXACTLY with this JSON schema:
+    {{
+        "destination": "String (Name of the city)",
+        "country": "String (Name of the country)",
+        "recommended_attractions": ["List", "of", "Strings"],
+        "safety_note": "String (Brief safety advisory)"
+    }}
+    """
+    
+    try:
+        response = client.chat.completions.create(
+            model="mixtral-8x7b-32768", # Using Groq's stable Mixtral model            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.2
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        # Added debug print to reveal the exact API failure reason
+        print(f"\n--- API CONNECTION ERROR ---\n{str(e)}\n----------------------------\n")
         return json.dumps({
-            "destination": "Pokhara",
-            "country": "Nepal",
-            "recommended_attractions": ["Phewa Lake", "Sarangkot"],
-            "safety_note": "Generally safe. Beware of monsoon weather from June to August."
-        })
-    elif "kyoto" in prompt_lower:
-        return json.dumps({
-            "destination": "Kyoto",
-            "country": "Japan",
-            "recommended_attractions": ["Fushimi Inari Taisha", "Kinkaku-ji"],
-            "safety_note": "Very safe. Respect local customs."
-        })
-    elif "hallucinate" in prompt_lower:
-        # Deliberately ungrounded output for testing
-        return json.dumps({
-            "destination": "Atlantis",
-            "country": "Ocean",
-            "recommended_attractions": ["Sunken Temple"],
-            "safety_note": "Bring oxygen."
-        })
-    elif "bad_schema" in prompt_lower:
-        # Deliberately broken schema for testing
-        return "I am unable to output JSON, but Pokhara is great!"
-    else:
-        return json.dumps({
-            "destination": "Unknown",
-            "country": "Unknown",
+            "destination": "Error",
+            "country": "Error",
             "recommended_attractions": [],
-            "safety_note": "No info."
+            "safety_note": f"API Error: {str(e)}"
         })
 
 def process_pipeline(user_input: str) -> dict:
@@ -69,7 +83,7 @@ def process_pipeline(user_input: str) -> dict:
     sanitized_input = detect_and_mask_pii(user_input)
 
     # --- MODEL INFERENCE ---
-    raw_response = mock_llm_generate(sanitized_input)
+    raw_response = generate_dynamic_response(sanitized_input, REFERENCE_DATA)
 
     # --- OUTPUT GUARDRAILS ---
     final_output = apply_output_guardrails(raw_response, REFERENCE_DATA)
