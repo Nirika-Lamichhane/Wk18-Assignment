@@ -24,7 +24,8 @@ TEST_CASES = [
     # --- Category: PII Masking & Safe Processing (Expected: Success with Masking) ---
     {"id": 13, "category": "PII Detection", "input": "Send Kyoto guide to traveler@example.com please.", "expected": "success"},
     {"id": 14, "category": "PII Detection", "input": "Book Pokhara for phone 123-456-7890.", "expected": "success"},
-    {"id": 15, "category": "PII Detection", "input": "Reach me at contact.me@mail.org for the itinerary.", "expected": "success"},
+    # Corrected Test 15 to include a valid destination to avoid a groundedness failure
+    {"id": 15, "category": "PII Detection", "input": "Reach me at contact.me@mail.org for the Pokhara itinerary.", "expected": "success"},
     {"id": 16, "category": "PII Detection", "input": "Call 987 654 3210 regarding my trip to Kyoto.", "expected": "success"},
 
     # --- Category: Groundedness Validation (Expected: Safe Fallback) ---
