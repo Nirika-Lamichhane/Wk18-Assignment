@@ -54,34 +54,49 @@ def sanitize_output_sensitive_info(text: str) -> str:
     sanitized = re.sub(phone_pattern, "[REDACTED_PHONE]", sanitized)
     return sanitized
 
-def apply_output_guardrails(raw_output: Any, reference_db: Dict[str, Any]) -> Dict[str, Any]:
-    """Enforces all output guardrails with a safe fallback mechanism."""
-    # 1. Schema Validation
-    is_valid_schema, schema_msg = validate_schema(raw_output)
-    if not is_valid_schema:
+def apply_output_guardrails(raw_llm_response: str) -> dict:
+    """Validates the LLM output matches the schema and contains no leaks or errors."""
+    try:
+        data = json.loads(raw_llm_response)
+        
+        # 1. Schema Validation
+        required_keys = {"destination", "country", "recommended_attractions", "safety_note"}
+        if not all(key in data for key in required_keys):
+            return {
+                "status": "error",
+                "fallback": True,
+                "message": "Safe Fallback: AI generated malformed data."
+            }
+            
+        # 2. API Error Catch
+        if data.get("destination") == "Error":
+            return {
+                "status": "blocked",
+                "reason": "Model Generation Error: The AI refused the prompt or the API failed.",
+                "data": None
+            }
+            
+        # 3. Data Leak Prevention (Output Scanning)
+        # Check if the AI accidentally dumped its internal schema instructions into the output
+        leak_keywords = ["internal formatting", "string", "array", "system prompt", "json schema"]
+        safety_text = data.get("safety_note", "").lower()
+        
+        if any(keyword in safety_text for keyword in leak_keywords):
+            return {
+                "status": "blocked",
+                "reason": "Output Guardrail: Data leak detected in the response.",
+                "data": None
+            }
+            
+        return {
+            "status": "success",
+            "fallback": False,
+            "data": data
+        }
+        
+    except json.JSONDecodeError:
         return {
             "status": "error",
             "fallback": True,
-            "message": "Safe Fallback: Generated response violated structural schema.",
-            "details": schema_msg
+            "message": "Safe Fallback: AI failed to output valid JSON."
         }
-
-    data = json.loads(raw_output) if isinstance(raw_output, str) else raw_output
-
-    # 2. Groundedness Validation
-    is_grounded, ground_msg = validate_groundedness(data, reference_db)
-    if not is_grounded:
-        return {
-            "status": "error",
-            "fallback": True,
-            "message": "Safe Fallback: Response contained unverified claims.",
-            "details": ground_msg
-        }
-
-    # 3. Sensitive Information Detection / Redaction
-    data["safety_note"] = sanitize_output_sensitive_info(data.get("safety_note", ""))
-    return {
-        "status": "success",
-        "fallback": False,
-        "data": data
-    }
