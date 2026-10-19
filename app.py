@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from guardrails.input_checks import detect_and_mask_pii, detect_prompt_injection, classify_sensitive_topic
 from guardrails.output_checks import apply_output_guardrails
+import streamlit as st
 
 load_dotenv()
 client = OpenAI(
@@ -73,6 +74,7 @@ def dynamic_intent_guardrail(user_prompt: str) -> bool:
             return is_unsafe
 
     except Exception as e:
+        st.error(f"Cloud API Error: {e}")
         print(f"Dynamic Guardrail Error: {e}")
         return True
 
