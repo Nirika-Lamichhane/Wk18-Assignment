@@ -1,6 +1,5 @@
 import json
 import os
-import mlflow
 from dotenv import load_dotenv
 from openai import OpenAI
 from guardrails.input_checks import detect_and_mask_pii, detect_prompt_injection, classify_sensitive_topic
@@ -12,8 +11,14 @@ client = OpenAI(
     base_url="https://api.groq.com/openai/v1"
 )
 
-mlflow.set_experiment("LLM Guardrails Travel Assistant Testing")
+try:
+    import mlflow
+    MLFLOW_ENABLED = True
+    mlflow.set_experiment("LLM_Guardrail_Testing")
+except ImportError:
+    MLFLOW_ENABLED = False
 
+    
 def dynamic_intent_guardrail(user_prompt: str) -> bool:
 
     """Dynamic Guardrail: Judge LLM evaluates semantic intent using Chain of Thought."""
@@ -35,6 +40,9 @@ def dynamic_intent_guardrail(user_prompt: str) -> bool:
     UNSAFE
     """
     try:
+        if not MLFLOW_ENABLED:
+            raise ImportError("MLflow is not available.")
+        
         # Start tracking this specific evaluation
         with mlflow.start_run(run_name="Judge_Evaluation"):
             
