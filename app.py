@@ -41,7 +41,7 @@ def generate_dynamic_response(user_prompt: str, reference_db: dict) -> str:
     
     try:
         response = client.chat.completions.create(
-            model="mixtral-8x7b-32768", # Using Groq's stable Mixtral model            response_format={"type": "json_object"},
+            model="openai/gpt-oss-20b",  # Using Groq's stable Mixtral model            response_format={"type": "json_object"},
             messages=[
                 {"role": "system", "content": system_instruction},
                 {"role": "user", "content": user_prompt}
