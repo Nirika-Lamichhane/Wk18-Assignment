@@ -77,8 +77,6 @@ The system was evaluated against a 20-case test suite encompassing benign reques
 
 # Architecture Diagram
 
-You can copy this Mermaid syntax into any Markdown viewer that supports Mermaid (like GitHub) to render the architecture flowchart, or paste it into [Mermaid Live](https://mermaid.live/) to generate an image.
-
 ```mermaid
 graph TD
     A[User Input via Streamlit UI] --> B{Layer 1: Static Guardrails}
