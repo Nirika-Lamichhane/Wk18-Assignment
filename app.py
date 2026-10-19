@@ -41,15 +41,23 @@ def dynamic_intent_guardrail(user_prompt: str) -> bool:
     UNSAFE
     """
     try:
-        if not MLFLOW_ENABLED:
-            raise ImportError("MLflow is not available.")
-        
-        # Start tracking this specific evaluation
-        with mlflow.start_run(run_name="Judge_Evaluation"):
-            
-            # Log the exact prompt the user tried
-            mlflow.log_param("user_prompt", user_prompt)
-            
+        if MLFLOW_ENABLED:
+            # this runs locally
+            with mlflow.start_run(run_name="Judge_Evaluation"):
+                mlflow.log_param("user_prompt", user_prompt)
+                response = client.chat.completions.create(
+                    model="openai/gpt-oss-20b",
+                    messages=[
+                        {"role": "system", "content": judge_instruction},
+                        {"role": "user", "content": f"User: {user_prompt}"}
+                    ],
+                    temperature=0.0,
+                    max_tokens=250
+                )
+                result = response.choices[0].message.content.strip().upper()
+                return "UNSAFE" in result
+        else:
+            # this part works on cloud. 
             response = client.chat.completions.create(
                 model="openai/gpt-oss-20b",
                 messages=[
@@ -60,22 +68,10 @@ def dynamic_intent_guardrail(user_prompt: str) -> bool:
                 max_tokens=250
             )
             result = response.choices[0].message.content.strip().upper()
-            
-            # Determine if it was blocked
-            is_unsafe = "UNSAFE" in result
-            
-            # Log the binary outcome (1 for blocked, 0 for passed)
-            mlflow.log_metric("blocked_by_judge", int(is_unsafe))
-            
-            # Save the Judge's Chain-of-Thought reasoning as an artifact
-            mlflow.log_text(result, "judge_reasoning.txt")
-            
-            print(f"\n--- JUDGE'S INTERNAL REASONING ---\n{result}\n----------------------------------\n")
-            return is_unsafe
+            return "UNSAFE" in result
 
     except Exception as e:
         st.error(f"Cloud API Error: {e}")
-        print(f"Dynamic Guardrail Error: {e}")
         return True
 
 def generate_dynamic_response(user_prompt: str) -> str:
