@@ -6,12 +6,13 @@ from guardrails.input_checks import detect_and_mask_pii, detect_prompt_injection
 from guardrails.output_checks import apply_output_guardrails
 import streamlit as st
 
-load_dotenv()
+# Pulls from Streamlit Cloud secrets first, falls back to local .env
+openai_key = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
+
 client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY"),
+    api_key=openai_key,
     base_url="https://api.groq.com/openai/v1"
 )
-
 try:
     import mlflow
     MLFLOW_ENABLED = True
